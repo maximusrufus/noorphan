@@ -28,5 +28,7 @@ surviving sleepers without and with the wrapper.
 | Linux    | `PR_SET_PDEATHSIG` on the child, `PR_SET_CHILD_SUBREAPER` on the wrapper, own session + process-group kill, watcher process for forced wrapper death |
 | macOS    | `start_new_session`, process-group kill on exit, watcher using kqueue `NOTE_EXIT` on the wrapper plus pipe EOF |
 
+Tested on Windows and Linux. macOS is untested until CI runs.
+
 Limit: on POSIX a descendant that moves itself into a new session escapes the
 group kill (Linux still catches it on a normal wrapper exit via the subreaper).
