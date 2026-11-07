@@ -57,6 +57,9 @@ kills the parent. Output of a real run on Windows:
   reused before the watcher fires, an unrelated group could be hit (narrow window).
 - Not for multithreaded host processes: the Linux path uses a pre-exec hook, which
   is unsafe when other threads exist at fork time.
+- The macOS default ignore matches the start of the command line, so a leak launched
+  from (or spoofing) `/System`, `/usr/libexec` or `/usr/sbin` goes unreported; use
+  `--no-default-ignore` to see everything.
 
 ## Platform status
 
@@ -87,6 +90,13 @@ Pin to a full commit sha for now; a `v0` tag will be added at the next version.
 `python-version`); `check` prints any new orphans as a table and fails the step
 if there are any. `allow` takes newline- or comma-separated regexes matched
 against the process name or command line.
+
+The runner terminates leftover processes at job end; the Action reports them, it
+does not clean up. The runner software (`actions/runner`, `JobExtension.cs`) only
+terminates processes that still carry its `RUNNER_TRACKING_ID` environment
+variable, so a process started with that variable cleared survives the job.
+Cleanup matters most where no runner reaper exists: local development machines,
+and long-lived self-hosted runners for processes that escape tracking (untested).
 
 ## Claude Code hook (untested)
 
