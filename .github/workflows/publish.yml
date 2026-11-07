@@ -1,7 +1,7 @@
 name: publish
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*.*.*"]
 jobs:
   pypi:
     runs-on: ubuntu-latest

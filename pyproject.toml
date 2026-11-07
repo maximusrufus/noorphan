@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noorphan"
-version = "0.1.0"
+version = "0.2.0"
 description = "Run a command so that every descendant dies when it exits or the wrapper is killed."
 readme = "README.md"
 requires-python = ">=3.10"
