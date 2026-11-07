@@ -16,7 +16,6 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
-  "Operating System :: MacOS",
   "Topic :: System :: Systems Administration",
 ]
 

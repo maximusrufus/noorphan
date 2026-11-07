@@ -12,8 +12,8 @@
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License: Apache-2.0">
 </p>
 
-Run a command and guarantee that every descendant dies when the command exits,
-the wrapper exits, or the wrapper is killed. Pure standard library
+Run a command and make sure every descendant dies when the command exits,
+the wrapper exits, or the wrapper is killed (see Limits). Pure standard library
 (`psutil` is an optional extra used by `scan` when present).
 
 ## Quick start
