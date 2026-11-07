@@ -165,3 +165,45 @@ def test_scan_json_and_fail_flag(tmp_path):
         [sys.executable, "-m", "noorphan", "scan", "--since", str(time.time() + 3600), "--fail"]
     )
     assert r.returncode == 0
+
+
+def test_baseline_tolerates_start_jitter():
+    from noorphan.scan import filter_orphans
+
+    o = [{"pid": 7, "ppid": 1, "name": "x", "start": 1000.0, "cmd": "x"}]
+    assert filter_orphans(o, baseline=[{"pid": 7, "start": 1001.0}]) == []
+    assert filter_orphans(o, baseline=[{"pid": 7, "start": 1005.0}]) == o
+    assert filter_orphans(o, baseline=[{"pid": 8, "start": 1000.0}]) == o
+
+
+def _scan(*args):
+    return subprocess.run([sys.executable, "-m", "noorphan", "scan", *args], capture_output=True, text=True)
+
+
+def test_bad_allow_regex_exits_2():
+    r = _scan("--allow", "([")
+    assert r.returncode == 2 and "Traceback" not in r.stderr and r.stderr.count("\n") == 1
+
+
+def test_corrupt_baseline_exits_2(tmp_path):
+    f = tmp_path / "b.json"
+    f.write_text("{not json")
+    r = _scan("--baseline", str(f))
+    assert r.returncode == 2 and "Traceback" not in r.stderr and r.stderr.count("\n") == 1
+    f.write_text('[{"pid": 1}]')
+    assert _scan("--baseline", str(f)).returncode == 2
+
+
+def test_fail_code_custom():
+    # nothing started in the future, so clean; code only applies when orphans remain
+    assert _scan("--since", str(time.time() + 3600), "--fail", "2").returncode == 0
+
+
+def test_fail_code_when_orphans_remain(monkeypatch, capsys):
+    from noorphan import scan
+
+    fake = [{"pid": 9, "ppid": 1, "name": "z", "start": time.time(), "cmd": "z"}]
+    monkeypatch.setattr(scan, "find_orphans", lambda: fake)
+    assert scan.main(["--fail", "2"]) == 2
+    assert scan.main(["--fail"]) == 1
+    assert scan.main([]) == 0

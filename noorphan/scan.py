@@ -130,13 +130,13 @@ def _split_allow(items):
 
 def filter_orphans(orphans, since=None, baseline=None, allow=()):
     """Drop orphans older than `since`, present in `baseline`, or matching `allow`."""
-    base = {(b["pid"], round(b["start"])) for b in baseline or []}
+    base = [(b["pid"], b["start"]) for b in baseline or []]
     pats = [re.compile(a) for a in allow]
     res = []
     for p in orphans:
         if since is not None and p["start"] < since:
             continue
-        if (p["pid"], round(p["start"])) in base:
+        if any(bp == p["pid"] and abs(bs - p["start"]) <= 2.0 for bp, bs in base):
             continue
         if any(r.search(p["name"]) or r.search(p["cmd"]) for r in pats):
             continue
@@ -161,20 +161,35 @@ def main(argv=None) -> int:
         default=[],
         help="regexes (newline/comma separated) on name or command line to ignore",
     )
-    ap.add_argument("--fail", action="store_true", help="exit 1 if any orphans remain")
+    ap.add_argument(
+        "--fail",
+        nargs="?",
+        const=1,
+        type=int,
+        metavar="CODE",
+        help="exit CODE (default 1) if any orphans remain",
+    )
     a = ap.parse_args(argv)
     base = None
     if a.baseline:
         try:
             with open(a.baseline, encoding="utf-8") as f:
                 base = json.load(f)
+            [(b["pid"], b["start"]) for b in base]
         except OSError:
             base = []
-    found = filter_orphans(find_orphans(), a.since, base, _split_allow(a.allow))
+        except (ValueError, KeyError, TypeError):
+            print(f"noorphan: invalid baseline file: {a.baseline}", file=sys.stderr)
+            return 2
+    try:
+        found = filter_orphans(find_orphans(), a.since, base, _split_allow(a.allow))
+    except re.error as e:
+        print(f"noorphan: invalid --allow regex: {e}", file=sys.stderr)
+        return 2
     now = time.time()
     if a.json:
         print(json.dumps(found))
     else:
         for p in found:
             print(f"{p['pid']}\t{p['name']}\t{_fmt_age(now - p['start'])}\t{p['cmd']}")
-    return 1 if (a.fail and found) else 0
+    return a.fail if (a.fail and found) else 0

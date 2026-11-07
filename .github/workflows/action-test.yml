@@ -30,8 +30,18 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          nohup sleep 600 > /dev/null 2>&1 &
-          disown
+          python3 - <<'PY'
+          import os
+          if os.fork() == 0:
+              os.setsid()
+              if os.fork() == 0:
+                  fd = os.open(os.devnull, os.O_RDWR)
+                  for n in (0, 1, 2):
+                      os.dup2(fd, n)
+                  os.execvp("sleep", ["sleep", "600"])
+              os._exit(0)
+          os.wait()
+          PY
       - name: Leave a detached sleeper (Windows)
         if: runner.os == 'Windows'
         shell: cmd
@@ -41,8 +51,17 @@ jobs:
         continue-on-error: true
         with:
           mode: check
-      - name: Assert the check failed
+      - name: Assert the sleeper was found and the check failed
         shell: bash
+        env:
+          OUTCOME: ${{ steps.check.outcome }}
+          PATTERN: ${{ runner.os == 'Windows' && 'ping' || 'sleep 600' }}
         run: |
-          echo "check outcome: ${{ steps.check.outcome }}"
-          test "${{ steps.check.outcome }}" = "failure"
+          echo "check outcome: $OUTCOME"
+          test "$OUTCOME" = "failure"
+          python - "$RUNNER_TEMP/found.json" "$PATTERN" <<'PY'
+          import json, re, sys
+          found = json.load(open(sys.argv[1]))
+          print([f["cmd"] for f in found])
+          assert any(re.search(sys.argv[2], f["cmd"]) for f in found), "sleeper not reported"
+          PY

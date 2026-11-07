@@ -75,30 +75,38 @@ Apache-2.0, see `LICENSE`.
 
 ## GitHub Action
 
-    - uses: maximusrufus/noorphan@v0
+    - uses: maximusrufus/noorphan@<commit sha>
       with: { mode: start }
     # ... your build and test steps ...
-    - uses: maximusrufus/noorphan@v0
+    - uses: maximusrufus/noorphan@<commit sha>
       with: { mode: check, allow: "^chrome$" }
+
+Pin to a full commit sha for now; a `v0` tag will be added at the next version.
 
 `start` snapshots existing orphans (inputs: `baseline` default `true`,
 `python-version`); `check` prints any new orphans as a table and fails the step
 if there are any. `allow` takes newline- or comma-separated regexes matched
 against the process name or command line.
 
-## Claude Code hook
+## Claude Code hook (untested)
 
-Run a scan when a session stops and fail loudly on leftovers. In `settings.json`
-(record the session start time in `$SESSION_START`, an epoch, however suits you):
+This section has not been run against a live session. Per the hook documentation,
+a hook that exits with code 2 blocks (for a Stop hook, the session is kept
+going and stderr is fed back); any other non-zero code is a non-blocking error
+that is only shown to the user. So `--fail` takes an optional exit code and the
+blocking form is `--fail 2`; plain `--fail` exits 1 and does not block.
+In `settings.json` (record the session start time in `$SESSION_START`, an epoch,
+however suits you):
 
     {
       "hooks": {
         "Stop": [
           { "hooks": [ { "type": "command",
-              "command": "noorphan scan --since $SESSION_START --fail" } ] }
+              "command": "noorphan scan --since $SESSION_START --fail 2" } ] }
         ]
       }
     }
 
-A `PostToolUse` hook with the same command works the same way if you want the
-check after every tool call.
+`noorphan scan` exit codes: 0 clean, the `--fail` code (default 1) if orphans
+remain, 2 for a bad `--allow` regex or an unreadable baseline file. A
+`PostToolUse` hook with the same command is also possible.
