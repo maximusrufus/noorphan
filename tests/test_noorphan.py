@@ -126,3 +126,12 @@ def test_sigint_forwarded_tree_gone_exit_code(tmp_path):
     while time.time() < end and any(pid_alive(p) for p in pids):
         time.sleep(0.1)
     assert not any(pid_alive(p) for p in pids)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal forwarding")
+def test_grace_period_kill_exit_code_137():
+    code = "import signal,time;signal.signal(signal.SIGINT,signal.SIG_IGN);time.sleep(60)"
+    w = subprocess.Popen([sys.executable, "-m", "noorphan", "--", sys.executable, "-c", code])
+    time.sleep(1.5)
+    w.send_signal(signal.SIGINT)
+    assert w.wait(timeout=15) == 137

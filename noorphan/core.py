@@ -158,8 +158,9 @@ def _run_posix(cmd):
         if deadline[0] is None:
             deadline[0] = time.monotonic() + GRACE
 
+    saved = {}
     for sg in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
-        signal.signal(sg, forward)
+        saved[sg] = signal.signal(sg, forward)
     try:
         while True:
             try:
@@ -175,6 +176,8 @@ def _run_posix(cmd):
             rc = 128 - rc
         return rc
     finally:
+        for sg, old in saved.items():
+            signal.signal(sg, old)
         try:
             os.killpg(pgid, signal.SIGKILL)
         except OSError:

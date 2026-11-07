@@ -6,13 +6,28 @@ build-backend = "setuptools.build_meta"
 name = "noorphan"
 version = "0.1.0"
 description = "Run a command so that every descendant dies when it exits or the wrapper is killed."
-requires-python = ">=3.10"
 readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
 dependencies = []
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Topic :: System :: Systems Administration",
+]
 
 [project.optional-dependencies]
 psutil = ["psutil"]
 test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/maximusrufus/noorphan"
+Source = "https://github.com/maximusrufus/noorphan"
+Issues = "https://github.com/maximusrufus/noorphan/issues"
 
 [project.scripts]
 noorphan = "noorphan.__main__:main"

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <style>svg{color:#24292f}@media (prefers-color-scheme:dark){svg{color:#e6edf3}}</style>
+  <g>
+    <path d="M32 10V26M32 26L16 38M32 26L48 38M16 38L8 54M16 38L24 54M48 38L40 54M48 38L56 54"/>
+    <circle cx="32" cy="10" r="5" fill="currentColor" stroke="none"/>
+    <circle cx="16" cy="38" r="4" fill="currentColor" stroke="none"/>
+    <circle cx="48" cy="38" r="4" fill="currentColor" stroke="none"/>
+    <circle cx="8" cy="54" r="3.5" fill="currentColor" stroke="none"/>
+    <circle cx="24" cy="54" r="3.5" fill="currentColor" stroke="none"/>
+    <circle cx="40" cy="54" r="3.5" fill="currentColor" stroke="none"/>
+    <circle cx="56" cy="54" r="3.5" fill="currentColor" stroke="none"/>
+  </g>
+  <path d="M18 23L46 15" stroke="#E5484D" stroke-width="4"/>
+</svg>
