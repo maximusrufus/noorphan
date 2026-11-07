@@ -44,8 +44,10 @@ runs:
           if [ -n "$NOORPHAN_ALLOW" ]; then
             args+=(--allow "$NOORPHAN_ALLOW")
           fi
-          python -m noorphan scan --json "${args[@]}" > "$RUNNER_TEMP/found.json" || true
-          python -m noorphan scan "${args[@]}"
+          rc=0
+          python -m noorphan scan --json "${args[@]}" > "$RUNNER_TEMP/found.json" || rc=$?
+          python -c "import json,sys; rows=json.load(open(sys.argv[1])); [print(r.get('pid'), r.get('name'), r.get('cmd')) for r in rows]; print(len(rows), 'orphan(s)')" "$RUNNER_TEMP/found.json" || true
+          exit $rc
         else
           echo "unknown mode: $NOORPHAN_MODE" >&2
           exit 2
