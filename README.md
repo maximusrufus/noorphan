@@ -62,9 +62,12 @@ kills the parent. Output of a real run on Windows:
 
 | Platform | Status |
 |----------|--------|
-| Windows  | tested |
-| Linux    | tested |
-| macOS    | pending CI |
+| Windows  | tested (CI) |
+| Linux    | tested (CI) |
+| macOS    | tested (CI) |
+
+CI: Python 3.10 and 3.13 on ubuntu-latest, macos-latest and windows-latest
+([run](https://github.com/maximusrufus/noorphan/actions/runs/42339468142)).
 
 ## License
 
