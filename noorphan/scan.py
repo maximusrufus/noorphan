@@ -121,8 +121,60 @@ def _fmt_age(s):
     return f"{s // 3600}h{s % 3600 // 60:02d}m{s % 60:02d}s"
 
 
-def main() -> int:
+def _split_allow(items):
+    out = []
+    for it in items or []:
+        out += [x.strip() for x in re.split(r"[\n,]", it) if x.strip()]
+    return out
+
+
+def filter_orphans(orphans, since=None, baseline=None, allow=()):
+    """Drop orphans older than `since`, present in `baseline`, or matching `allow`."""
+    base = {(b["pid"], round(b["start"])) for b in baseline or []}
+    pats = [re.compile(a) for a in allow]
+    res = []
+    for p in orphans:
+        if since is not None and p["start"] < since:
+            continue
+        if (p["pid"], round(p["start"])) in base:
+            continue
+        if any(r.search(p["name"]) or r.search(p["cmd"]) for r in pats):
+            continue
+        res.append(p)
+    return res
+
+
+def main(argv=None) -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="noorphan scan")
+    ap.add_argument("--json", action="store_true", help="print a JSON list")
+    ap.add_argument(
+        "--since", type=float, help="only processes started at/after this epoch"
+    )
+    ap.add_argument(
+        "--baseline", help="JSON file from an earlier --json scan to ignore"
+    )
+    ap.add_argument(
+        "--allow",
+        action="append",
+        default=[],
+        help="regexes (newline/comma separated) on name or command line to ignore",
+    )
+    ap.add_argument("--fail", action="store_true", help="exit 1 if any orphans remain")
+    a = ap.parse_args(argv)
+    base = None
+    if a.baseline:
+        try:
+            with open(a.baseline, encoding="utf-8") as f:
+                base = json.load(f)
+        except OSError:
+            base = []
+    found = filter_orphans(find_orphans(), a.since, base, _split_allow(a.allow))
     now = time.time()
-    for p in find_orphans():
-        print(f"{p['pid']}\t{p['name']}\t{_fmt_age(now - p['start'])}\t{p['cmd']}")
-    return 0
+    if a.json:
+        print(json.dumps(found))
+    else:
+        for p in found:
+            print(f"{p['pid']}\t{p['name']}\t{_fmt_age(now - p['start'])}\t{p['cmd']}")
+    return 1 if (a.fail and found) else 0

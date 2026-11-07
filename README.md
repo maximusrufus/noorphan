@@ -72,3 +72,33 @@ CI: Python 3.10 and 3.13 on ubuntu-latest, macos-latest and windows-latest
 ## License
 
 Apache-2.0, see `LICENSE`.
+
+## GitHub Action
+
+    - uses: maximusrufus/noorphan@v0
+      with: { mode: start }
+    # ... your build and test steps ...
+    - uses: maximusrufus/noorphan@v0
+      with: { mode: check, allow: "^chrome$" }
+
+`start` snapshots existing orphans (inputs: `baseline` default `true`,
+`python-version`); `check` prints any new orphans as a table and fails the step
+if there are any. `allow` takes newline- or comma-separated regexes matched
+against the process name or command line.
+
+## Claude Code hook
+
+Run a scan when a session stops and fail loudly on leftovers. In `settings.json`
+(record the session start time in `$SESSION_START`, an epoch, however suits you):
+
+    {
+      "hooks": {
+        "Stop": [
+          { "hooks": [ { "type": "command",
+              "command": "noorphan scan --since $SESSION_START --fail" } ] }
+        ]
+      }
+    }
+
+A `PostToolUse` hook with the same command works the same way if you want the
+check after every tool call.

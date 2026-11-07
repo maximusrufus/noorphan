@@ -135,3 +135,33 @@ def test_grace_period_kill_exit_code_137():
     time.sleep(1.5)
     w.send_signal(signal.SIGINT)
     assert w.wait(timeout=15) == 137
+
+
+def test_filter_orphans_since_baseline_allow():
+    from noorphan.scan import _split_allow, filter_orphans
+
+    o = [
+        {"pid": 1, "ppid": 1, "name": "a", "start": 100.0, "cmd": "a --x"},
+        {"pid": 2, "ppid": 1, "name": "b", "start": 200.0, "cmd": "b --y"},
+        {"pid": 3, "ppid": 1, "name": "c", "start": 300.0, "cmd": "c --z"},
+    ]
+    assert [p["pid"] for p in filter_orphans(o, since=150)] == [2, 3]
+    assert [p["pid"] for p in filter_orphans(o, baseline=[o[0]])] == [2, 3]
+    assert [p["pid"] for p in filter_orphans(o, allow=["^b$", "--z"])] == [1]
+    assert _split_allow(["x, y\nz"]) == ["x", "y", "z"]
+
+
+def test_scan_json_and_fail_flag(tmp_path):
+    r = subprocess.run(
+        [sys.executable, "-m", "noorphan", "scan", "--json", "--since", str(time.time() + 3600)],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0
+    import json
+
+    assert json.loads(r.stdout) == []
+    r = subprocess.run(
+        [sys.executable, "-m", "noorphan", "scan", "--since", str(time.time() + 3600), "--fail"]
+    )
+    assert r.returncode == 0

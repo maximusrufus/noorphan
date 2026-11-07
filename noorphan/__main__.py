@@ -6,7 +6,7 @@ def main(argv=None) -> int:
     if argv[:1] == ["scan"]:
         from .scan import main as scan_main
 
-        return scan_main()
+        return scan_main(argv[1:])
     if argv[:1] == ["--"]:
         argv = argv[1:]
     elif not argv or argv[0] in ("-h", "--help"):
