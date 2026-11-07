@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 
+import pytest
 from noorphan._util import pid_alive
 
 PARENT = (
@@ -83,3 +84,45 @@ def test_scan_runs():
         [sys.executable, "-m", "noorphan", "scan"], capture_output=True, text=True
     )
     assert r.returncode == 0
+
+
+def test_fast_grandchild_spawn_killed_with_wrapper(tmp_path):
+    f = str(tmp_path / "pid")
+    code = (
+        "import subprocess,sys,os;"
+        "k=subprocess.Popen([sys.executable,'-c','import time;time.sleep(120)']);"
+        "open(sys.argv[1]+'.t','w').write(str(k.pid));os.replace(sys.argv[1]+'.t',sys.argv[1])"
+    )
+    w = subprocess.Popen(_wrap(code, f))
+    end = time.time() + 20
+    while not os.path.exists(f) and time.time() < end:
+        time.sleep(0.05)
+    pid = int(open(f).read())
+    try:
+        w.kill()
+        w.wait()
+        end = time.time() + 10
+        while time.time() < end and pid_alive(pid):
+            time.sleep(0.1)
+        assert not pid_alive(pid)
+    finally:
+        if pid_alive(pid):
+            os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal forwarding")
+def test_sigint_forwarded_tree_gone_exit_code(tmp_path):
+    f = str(tmp_path / "pids")
+    code = (
+        "import signal,sys;signal.signal(signal.SIGINT,lambda *a:sys.exit(5));"
+        + PARENT.replace("SLEEP", "120")
+    )
+    w = subprocess.Popen(_wrap(code, f))
+    pids = _wait_file(f)
+    time.sleep(0.5)
+    w.send_signal(signal.SIGINT)
+    assert w.wait(timeout=15) == 5
+    end = time.time() + 10
+    while time.time() < end and any(pid_alive(p) for p in pids):
+        time.sleep(0.1)
+    assert not any(pid_alive(p) for p in pids)

@@ -2,6 +2,9 @@ import os
 import signal
 import subprocess
 import sys
+import time
+
+GRACE = 3.0
 
 
 def run(cmd: list[str]) -> int:
@@ -62,10 +65,18 @@ def _run_windows(cmd):
     info.Basic.LimitFlags = 0x2000  # KILL_ON_JOB_CLOSE
     if not k.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info)):
         raise ctypes.WinError(ctypes.get_last_error())
-    p = subprocess.Popen(cmd)
+    # Start paused (creation flag 0x4) so no descendant can exist before the child is in the job.
+    p = subprocess.Popen(cmd, creationflags=0x4)
     try:
         if not k.AssignProcessToJobObject(job, int(p._handle)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            err = ctypes.get_last_error()
+            p.kill()
+            raise ctypes.WinError(err)
+        nt = ctypes.WinDLL("ntdll")
+        nt.NtResumeProcess.argtypes = [w.HANDLE]
+        if nt.NtResumeProcess(int(p._handle)) != 0:
+            p.kill()
+            raise OSError("NtResumeProcess failed")
         while True:
             try:
                 return p.wait()
@@ -121,9 +132,13 @@ def _run_posix(cmd):
         libc = ctypes.CDLL(None, use_errno=True)
         libc.prctl(36, 1, 0, 0, 0)  # PR_SET_CHILD_SUBREAPER
 
+    expected_ppid = os.getpid()
+
     def pre():
         if libc is not None:
             libc.prctl(1, signal.SIGKILL, 0, 0, 0)  # PR_SET_PDEATHSIG
+            if os.getppid() != expected_ppid:  # wrapper died before prctl took effect
+                os._exit(1)
 
     p = subprocess.Popen(cmd, start_new_session=True, preexec_fn=pre if linux else None)
     pgid = p.pid
@@ -133,17 +148,29 @@ def _run_posix(cmd):
         start_new_session=True,
     )
 
-    def term(signum, _frame):
-        raise SystemExit(128 + signum)
+    deadline = [None]
 
-    signal.signal(signal.SIGTERM, term)
-    signal.signal(signal.SIGHUP, term)
-    rc = 130
-    try:
+    def forward(signum, _frame):
         try:
-            rc = p.wait()
-        except KeyboardInterrupt:
-            rc = 130
+            os.killpg(pgid, signum)
+        except OSError:
+            pass
+        if deadline[0] is None:
+            deadline[0] = time.monotonic() + GRACE
+
+    for sg in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sg, forward)
+    try:
+        while True:
+            try:
+                rc = p.wait(timeout=0.1)
+                break
+            except subprocess.TimeoutExpired:
+                if deadline[0] is not None and time.monotonic() > deadline[0]:
+                    try:
+                        os.killpg(pgid, signal.SIGKILL)
+                    except OSError:
+                        pass
         if rc < 0:
             rc = 128 - rc
         return rc

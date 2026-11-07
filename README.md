@@ -32,3 +32,14 @@ Tested on Windows and Linux. macOS is untested until CI runs.
 
 Limit: on POSIX a descendant that moves itself into a new session escapes the
 group kill (Linux still catches it on a normal wrapper exit via the subreaper).
+
+## Notes
+
+- Interactive commands lose their controlling terminal on POSIX (the child runs
+  in its own session), so full-screen programs and shells are not supported.
+- Signals (interrupt, terminate, hangup) are forwarded to the child group; after a
+  3 s grace period the group is killed.
+- The watcher kills by process-group id; if the whole group is gone and the id is
+  reused before the watcher fires, an unrelated group could be hit (narrow window).
+- Not for multithreaded host processes: the Linux path uses a pre-exec hook, which
+  is unsafe when other threads exist at fork time.
