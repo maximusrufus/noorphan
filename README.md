@@ -110,3 +110,9 @@ however suits you):
 `noorphan scan` exit codes: 0 clean, the `--fail` code (default 1) if orphans
 remain, 2 for a bad `--allow` regex or an unreadable baseline file. A
 `PostToolUse` hook with the same command is also possible.
+
+## Default ignore (macOS)
+
+On macOS, processes whose executable is under `/System/`, `/usr/libexec/` or
+`/usr/sbin/` (system daemons started by the init process) are not reported.
+Pass `--no-default-ignore` to `noorphan scan` to include them.

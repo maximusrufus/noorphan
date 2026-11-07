@@ -128,12 +128,26 @@ def _split_allow(items):
     return out
 
 
-def filter_orphans(orphans, since=None, baseline=None, allow=()):
-    """Drop orphans older than `since`, present in `baseline`, or matching `allow`."""
+MAC_DEFAULT_IGNORE = ("/System/", "/usr/libexec/", "/usr/sbin/")
+
+
+def default_ignored(p, platform=None):
+    """macOS only: system daemons launched by the init process are not leaks."""
+    if (platform or sys.platform) != "darwin":
+        return False
+    return p["cmd"].startswith(MAC_DEFAULT_IGNORE)
+
+
+def filter_orphans(
+    orphans, since=None, baseline=None, allow=(), default_ignore=True, platform=None
+):
+    """Drop orphans older than `since`, present in `baseline`, matching `allow`, or default-ignored."""
     base = [(b["pid"], b["start"]) for b in baseline or []]
     pats = [re.compile(a) for a in allow]
     res = []
     for p in orphans:
+        if default_ignore and default_ignored(p, platform):
+            continue
         if since is not None and p["start"] < since:
             continue
         if any(bp == p["pid"] and abs(bs - p["start"]) <= 2.0 for bp, bs in base):
@@ -169,6 +183,11 @@ def main(argv=None) -> int:
         metavar="CODE",
         help="exit CODE (default 1) if any orphans remain",
     )
+    ap.add_argument(
+        "--no-default-ignore",
+        action="store_true",
+        help="macOS: also report processes whose executable is under /System/, /usr/libexec/ or /usr/sbin/",
+    )
     a = ap.parse_args(argv)
     base = None
     if a.baseline:
@@ -182,7 +201,13 @@ def main(argv=None) -> int:
             print(f"noorphan: invalid baseline file: {a.baseline}", file=sys.stderr)
             return 2
     try:
-        found = filter_orphans(find_orphans(), a.since, base, _split_allow(a.allow))
+        found = filter_orphans(
+            find_orphans(),
+            a.since,
+            base,
+            _split_allow(a.allow),
+            default_ignore=not a.no_default_ignore,
+        )
     except re.error as e:
         print(f"noorphan: invalid --allow regex: {e}", file=sys.stderr)
         return 2

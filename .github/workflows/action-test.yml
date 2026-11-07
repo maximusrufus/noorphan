@@ -44,8 +44,22 @@ jobs:
           PY
       - name: Leave a detached sleeper (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
-        run: start /b ping -n 600 127.0.0.1 > nul
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess, sys
+          args = ["ping", "-n", "600", "127.0.0.1"]
+          flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+          kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+          try:
+              subprocess.Popen(args, creationflags=flags | 0x01000000, **kw)  # + BREAKAWAY_FROM_JOB
+          except OSError:
+              subprocess.Popen(args, creationflags=flags, **kw)
+          PY
+      - name: Diagnose (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Get-CimInstance Win32_Process -Filter "Name='PING.EXE'" | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List
       - id: check
         uses: ./
         continue-on-error: true

@@ -207,3 +207,18 @@ def test_fail_code_when_orphans_remain(monkeypatch, capsys):
     assert scan.main(["--fail", "2"]) == 2
     assert scan.main(["--fail"]) == 1
     assert scan.main([]) == 0
+
+
+def test_macos_default_ignore():
+    from noorphan.scan import filter_orphans
+
+    o = [
+        {"pid": 1, "ppid": 1, "name": "mdworker_shared", "start": 5.0,
+         "cmd": "/System/Library/Frameworks/CoreServices.framework/mdworker_shared -s x"},
+        {"pid": 2, "ppid": 1, "name": "d", "start": 5.0, "cmd": "/usr/libexec/d"},
+        {"pid": 3, "ppid": 1, "name": "s", "start": 5.0, "cmd": "/usr/sbin/s"},
+        {"pid": 4, "ppid": 1, "name": "sleep", "start": 5.0, "cmd": "sleep 600"},
+    ]
+    assert [p["pid"] for p in filter_orphans(o, platform="darwin")] == [4]
+    assert len(filter_orphans(o, platform="darwin", default_ignore=False)) == 4
+    assert len(filter_orphans(o, platform="linux")) == 4
